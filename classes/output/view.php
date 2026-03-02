@@ -242,6 +242,10 @@ class view {
                     $this->supervideo->playersize = supervideo_youtube_size($this->supervideo, true);
                 }
 
+                // Override elementid: Plyr uses 'youtube-' as its own internal prefix;
+                // if our element ID starts with 'youtube-', Plyr skips initialization.
+                $elementid = "sv-youtube-{$uniqueid}";
+
                 $pattern = '/youtu(\.be|be\.com)\/(watch\?v=|embed\/|live\/|shorts\/)?([a-z0-9_\-]{11})/i';
                 if (preg_match($pattern, $this->supervideo->videourl, $output)) {
                     $PAGE->requires->js_call_amd("mod_supervideo/player_create", "youtube", [
@@ -254,8 +258,11 @@ class view {
                         $this->supervideo->autoplay ? 1 : 0,
                     ]);
 
-                    $link = "<script src='https://www.youtube.com/iframe_api'></script>";
-                    return $link . $OUTPUT->render_from_template("mod_supervideo/embed_div", ["elementid" => $elementid]);
+                    $PAGE->requires->js_amd_inline("require(['mod_supervideo/player_render']);");
+                    return $OUTPUT->render_from_template("mod_supervideo/embed_youtube", [
+                        "elementid" => $elementid,
+                        "videoid"   => $output[3],
+                    ]);
                 } else {
                     return $this->create_error_message(get_string("idnotfound", "mod_supervideo"));
                 }
@@ -274,10 +281,18 @@ class view {
                         $elementid,
                         $this->supervideo->playersize,
                     ]);
+                    if ($this->supervideo->playersize === "4x3") {
+                        $wrapstyle = "position:relative;width:100%;aspect-ratio:4/3";
+                    } else if ($this->supervideo->playersize === "16x9") {
+                        $wrapstyle = "position:relative;width:100%;aspect-ratio:16/9";
+                    } else {
+                        $wrapstyle = "position:relative;width:100%;height:640px";
+                    }
                     return $OUTPUT->render_from_template("mod_supervideo/embed_drive", [
                         "elementid" => $elementid,
                         "driveid" => $output[0],
                         "parametersdrive" => $parametersdrive,
+                        "wrapstyle" => $wrapstyle,
                     ]);
                 } else {
                     return $this->create_error_message(get_string("idnotfound", "mod_supervideo"));

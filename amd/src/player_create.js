@@ -56,55 +56,50 @@ define(["jquery", "core/ajax", "mod_supervideo/player_render", "jqueryui"], func
         youtube: function (view_id, start_currenttime, elementId, videoid, playersize, showcontrols, autoplay) {
             player_create._internal_view_id = view_id;
 
-            var playerVars = {
-                rel: 0,
-                controls: showcontrols,
-                autoplay: autoplay,
-                playsinline: 1,
-                start: start_currenttime ? start_currenttime : 0,
+            var defaultControls = [
+                'play-large', 'play', 'progress', 'current-time',
+                'mute', 'volume', 'settings', 'fullscreen'
+            ];
+
+            var config = {
+                controls: showcontrols ? defaultControls : [],
+                autoplay: !!autoplay,
+                storage: {enabled: true, key: "id-" + view_id},
+                youtube: {
+                    rel: 0,
+                    iv_load_policy: 3,
+                    modestbranding: 1,
+                },
             };
 
-            var player;
-            if (YT && YT.Player) {
-                player = new YT.Player(elementId, {
-                    suggestedQuality: "large",
-                    videoId: videoid,
-                    width: "100%",
-                    playerVars: playerVars,
-                    events: {
-                        "onReady": function (event) {
+            var player = new PlayerRender('#' + elementId, config);
 
-                            var sizes = playersize.split("x");
-                            console.log(sizes);
-                            if (sizes && sizes[1]) {
-                                console.log(sizes);
-                                player_create._internal_resize(sizes[0], sizes[1]);
-                            } else {
-                                player_create._internal_resize(16, 9);
-                            }
+            player.on("ready", function () {
+                if (start_currenttime) {
+                    player.currentTime = parseInt(start_currenttime);
+                    setTimeout(function () {
+                        player.currentTime = parseInt(start_currenttime);
+                    }, 1000);
 
-                            document.addEventListener("setCurrentTime", function (event) {
-                                player.seekTo(event.detail.goCurrentTime);
-                            });
-                        },
-                        "onStateChange": function (event) {
-                            console.log(event);
-                        }
+                    if (!autoplay) {
+                        player.pause();
                     }
+                }
+
+                var sizes = playersize.split("x");
+                if (sizes && sizes[1]) {
+                    player_create._internal_resize(sizes[0], sizes[1]);
+                } else {
+                    player_create._internal_resize(16, 9);
+                }
+
+                document.addEventListener("setCurrentTime", function (event) {
+                    player.currentTime = event.detail.goCurrentTime;
                 });
-            } else {
-                var html =
-                    `<div class="alert alert-danger">
-                             Error loading the JavaScript at https://www.youtube.com/iframe_api
-                             Please check for any Security Policy restrictions.
-                         </div>`;
-                $("#supervideo_area_embed").html(html);
-            }
+            });
 
             setInterval(function () {
-                if (player && player.getCurrentTime != undefined) {
-                    player_create._internal_saveprogress(player.getCurrentTime(), player.getDuration() - 1);
-                }
+                player_create._internal_saveprogress(player.currentTime, player.duration);
             }, 150);
         },
 
@@ -319,13 +314,12 @@ define(["jquery", "core/ajax", "mod_supervideo/player_render", "jqueryui"], func
             player_create._internal_saveprogress(1, 1);
 
             if (playersize == "4x3") {
-                player_create._internal_resize(4, 3);
+                $('#' + elementId).css('aspect-ratio', '4/3');
             } else if (playersize == "16x9") {
-                player_create._internal_resize(16, 9);
+                $('#' + elementId).css('aspect-ratio', '16/9');
             } else {
                 $("body").removeClass("distraction-free-mode");
-
-                player_create._internal_resize(100, 640);
+                $('#' + elementId).css('height', '640px');
             }
         },
 
